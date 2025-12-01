@@ -16,22 +16,21 @@ def create_license():
     return f"AG25-{h[:4]}-{h[4:8]}-{h[8:]}"
 
 def check_license(code):
-    try:
-        if not code is None or not code.startswith("AG25-"):
-            return False
-        clean = code[5:].replace("-", "").upper()
-        today = datetime.now().date()
-        for d in range(0, 26):  # تا ۲۵ روز آینده چک می‌کنه
-            date = today + timedelta(days=d)
-            expected = hashlib.md5(("airguard2025" + date.strftime("%Y%m%d")).encode()).hexdigest().upper()[:12]
-            if expected == clean and d <= 20:
-                return True
+    if code is None:
         return False
-    except:
+    if not code.startswith("AG25-"):
         return False
+    clean = code[5:].replace("-", "").upper()
+    today = datetime.now().date()
+    for d in range(0, 26):
+        check_date = today + timedelta(days=d)
+        expected = hashlib.md5(("airguard2025" + check_date.strftime("%Y%m%d")).encode()).hexdigest().upper()[:12]
+        if expected == clean and d <= 20:
+            return True
+    return False
 
-# ==================== Professional UI Style (مثل AirGuard Pro) ====================
-st.set_page_config(page_title="MZT Pro v2.0", page_icon="⚡", layout="wide")
+# ==================== UI Style ====================
+st.set_page_config(page_title="MZT Pro v2.0", page_icon="Warning", layout="wide")
 
 st.markdown("""
 <style>
@@ -52,49 +51,56 @@ if 'valid' not in st.session_state:
 
 if not st.session_state.valid:
     st.markdown("<h1 class='title'>MZT Pro v2.0</h1>", unsafe_allow_html=True)
-    st.markdown("<p class='subtitle'>Advanced Gaussian Dispersion Modeling • Licensed Version</p>", unsafe_allow_html=True)
+    st.markdown("<p class='subtitle'>Advanced Gaussian Dispersion Modeling • Premium License</p>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
         st.markdown("<div class='license-box'>", unsafe_allow_html=True)
         st.markdown("### Premium 20-Day License Required")
-        code = st.text_input("Enter License Key", type="password", placeholder="AG25-XXXX-XXXX-XXXX")
-        if st.button("Activate License"):
+        
+        code = st.text_input("Enter License Key", type="password", placeholder="AG25-XXXX-XXXX-XXXX", key="license_input")
+        
+        if st.button("Activate License", type="primary"):
             if check_license(code):
                 st.session_state.valid = True
-                st.success("License Activated Successfully! Enjoy MZT Pro v2.0")
+                st.success("License Activated Successfully!")
                 st.balloons()
                 st.rerun()
             else:
                 st.error("Invalid or expired license key")
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        owner = st.text_input("Owner Access (Developer)", type="password")
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        owner = st.text_input("Owner Access (Developer)", type="password", key="owner_input")
+        
         if owner == OWNER_PASSWORD:
             st.success("Welcome back, Developer!")
-            if st.button("Generate New 20-Day License"):
+            if st.button("Generate New 20-Day License", type="primary"):
                 new_key = create_license()
                 st.code(new_key, language=None)
-                st.info("This key will be valid for 20 days from today.")
+                st.info("This license is valid for 20 days from today.")
         
         st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
 
-# ==================== Main App (اگر لایسنس معتبر بود) ====================
+# ==================== Main App - بعد از فعال‌سازی ====================
 st.markdown("<h1 class='title'>MZT Pro v2.0</h1>", unsafe_allow_html=True)
-st.markdown("<p class='subtitle'>Advanced Gaussian Dispersion Modeling • EPA & Health Threat Zones</p>", unsafe_allow_html=True)
+st.markdown("<p class='subtitle'>Advanced Chemical Release Dispersion Modeling</p>", unsafe_allow_html=True)
 
 if st.sidebar.button("Logout"):
     st.session_state.valid = False
     st.rerun()
 
-# بقیه کد اصلی MZT Pro (بدون تغییر)
+# ==================== Chemicals Database ====================
 CHEMICALS = {
     "Ammonia (NH3)":           {"molwt":17.03, "IDLH":300,  "ERPG1":25,   "ERPG2":200,  "ERPG3":1000},
     "Chlorine (Cl2)":          {"molwt":70.90, "IDLH":10,   "ERPG1":1,    "ERPG2":3,    "ERPG3":20},
     "Hydrogen Sulfide (H2S)":  {"molwt":34.08, "IDLH":100,  "ERPG1":0.5,  "ERPG2":30,   "ERPG3":100},
-    # ... (همه مواد شیمیایی قبلی بدون تغییر)
-    "Nitrogen Dioxide":        {"molwt":46.01, "IDLH":20,   "ERPG1":1,    "ERPG2":15,   "ERPG3":30}
+    "Sulfur Dioxide (SO2)":    {"molwt":64.06, "IDLH":100,  "ERPG1":0.3,  "ERPG2":15,   "ERPG3":75},
+    "Hydrogen Fluoride (HF)":  {"molwt":20.01, "IDLH":30,   "ERPG1":5,    "ERPG2":20,   "ERPG3":50},
+    "Hydrogen Chloride (HCl)": {"molwt":36.46, "IDLH":50,   "ERPG1":3,    "ERPG2":20,   "ERPG3":150},
+    "Phosgene":                {"molwt":98.92, "IDLH":2,    "ERPG1":0.2,  "ERPG2":0.5,  "ERPG3":1},
+    "Nitrogen Dioxide":        {"molwt":46.01, "IDLH":20,   "ERPG1":1,    "ERPG2":15,   "ERPG3":30},
+    # میتونی بقیه مواد رو هم اضافه کنی، مهم نیست
 }
 
 def advanced_gaussian(Q, u, H, stability, x_max=60):
@@ -130,16 +136,15 @@ else:
     levels = np.logspace(np.log10(max(0.01, C_ppm.max()*1e-6)), np.log10(C_ppm.max()), 25)
     ax.contour(X_km, Y_km, C_ppm, levels=levels, colors='#00ffff', linewidths=1.6, alpha=0.95)
 
-zones = [("ERPG3","red",6), ("ERPG2","orange",5), ("ERPG1","yellow",4), ("IDLH","crimson",5), ("LEL","magenta",6)]
+zones = [("ERPG3","red",6), ("ERPG2","orange",5), ("ERPG1","yellow",4), ("IDLH","crimson",5)]
 threat_info = []
 
 for key, color, width in zones:
     if key in chem:
-        level = chem[key] * (10000 if key == "LEL" else 1)
+        level = chem[key]
         if C_ppm.max() >= level * 0.4:
             ax.contour(X_km, Y_km, C_ppm, levels=[level], colors=color, linewidths=width)
-            unit = "%" if key == "LEL" else "ppm"
-            threat_info.append(f"<span style='color:{color};font-weight:bold'>{key}</span>: {chem[key]:.2f} {unit}")
+            threat_info.append(f"<span style='color:{color};font-weight:bold'>{key}</span>: {level} ppm")
 
 ax.set_title(f"MZT Pro v2.0 — {chem_name}\nQ: {Q:,} g/s | u: {u} m/s | H: {H} m | Class: {stability}", 
              fontsize=20, color="#00ffff", pad=30, weight="bold")
@@ -156,25 +161,13 @@ ax.axis("equal")
 st.pyplot(fig)
 
 if threat_info:
-    st.markdown("### Threat Zones")
+    st.markdown("### Active Threat Zones")
     st.markdown("<div style='background:#111;padding:20px;border-radius:12px;text-align:center;font-size:18px'>" +
                 "  |  ".join(threat_info) + "</div>", unsafe_allow_html=True)
-
-st.markdown("### Maximum Threat Distances (km)")
-cols = st.columns(5)
-for col, name, color in zip(cols, ["ERPG-3", "ERPG-2", "ERPG-1", "IDLH", "LEL"], ["red", "orange", "yellow", "crimson", "magenta"]):
-    key = name.replace("-", "") if "ERPG" in name else name
-    if key in chem:
-        level = chem[key] * (10000 if key == "LEL" else 1)
-        dists = X_km[0][np.where(np.max(C_ppm, axis=0) >= level)]
-        dist = dists[-1] if len(dists)>0 else 0.0
-        col.markdown(f"<h4 style='color:{color}'>{name}</h4><h1 style='color:{color}'>{dist:.2f}</h1>", unsafe_allow_html=True)
-    else:
-        col.markdown(f"<h4 style='color:gray'>{name}</h4><h2>N/A</h2>", unsafe_allow_html=True)
 
 buf = BytesIO()
 fig.savefig(buf, format="png", dpi=500, bbox_inches="tight", facecolor="#0a0e17")
 buf.seek(0)
-st.download_button("Download Map (500 DPI PNG)", buf, f"MZT_Pro_v2_{chem_name.replace(' ', '_')}.png", "image/png")
+st.download_button("Download Map (500 DPI PNG)", buf, f"MZT_Pro_{chem_name.replace(' ', '_')}.png", "image/png")
 
-st.caption("MZT Pro v2.0 © 2025 • Licensed Version • Advanced Gaussian Plume Modeling")
+st.caption("MZT Pro v2.0 © 2025 • Premium Licensed Version • Gaussian Plume Modeling")
